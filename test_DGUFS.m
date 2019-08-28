@@ -33,4 +33,4 @@ test_y = test(:, Target);
 
 %% Feature Selection Process
 % UDFS
-[r_MIFS, w_MIFS] = DGUFS_Zeal(train_X, train_y)
+[r_MIFS, w_MIFS] = DGUFS_Zeal(train_X, 2)

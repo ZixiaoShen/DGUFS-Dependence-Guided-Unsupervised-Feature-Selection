@@ -4,7 +4,7 @@ function [Y, L, V, Label] = DGUFS_Zeal(X, nClass, S, alpha, beta, nSel)
 %% Input:
     %  X  - each column is an original sample
     %  nClass  -  the number of clusters
-    %  S   -  similarity matrix of data X
+    %  S - similarity matrix of data X
     %  alpha  -  regularization parameter:  alpha * rank(L)
     %  beta   -  regularization parameter:  beta * tr(S' * L)
     %  nSel   -  the dimension of selected features
@@ -49,14 +49,42 @@ function [Y, L, V, Label] = DGUFS_Zeal(X, nClass, S, alpha, beta, nSel)
         Z = X - solve_120(temp1, (nFea - nSel));
         
         % update Y
-        temp1 = Z + ((1-beta) * Z*H*L*H + Lamda1) / mu;
+        temp1 = Z + ((1-beta) *Z*H*L*H + Lamda1) / mu;
         Y = solve_l20(temp1, nSel);
         
         % update L
         temp2 = ((1-beta)*speedUp(H*Y'*Z*H) + beta*S - Lamda2)/mu + M;
         L = solve_rank_lagrange(speedUp(temp2), 2 * alpha/mu);
+        
+        % update M
+        M = L + Lamda2 / mu;
+        gamma = 5e-3;
+        M = solve_10_binary(M, 2 * gamma / mu);
+        M = M - diag(diag(M)) + eye(nSmp);
+        
+        % check if stop criterion is satisfied
+        leq1 = Z - Y;
+        leq2 = L - M;
+        stopC1 = max(max(abs(leq1)));  % Infinite norm
+        stopC2 = max(max(abs(leq2)));
+        if (iter == 1 || mod(iter, 2)==0 || ((stopC1 < tol) && (stopC2 < tol)))
+            disp(['Iter ' num2str(stopC1, '%2.4e') ', ' num2str(stopC2, '%2.4e')]);
+        end
+        if (stopC1 < tol) && (stopC2 < tol)
+            break;
+        end
+        
+        % update Lagrange multipliers
+        Lamda1 = Lamda1 + mu * leq1;
+        Lamda2 = Lamda2 + mu * leq2;
+        mu = min(max_mu, mu * rho);
+        
+        iter = iter + 1;
+    end
 
-
-
+[eigV, eigD] = eigs(max(L, L'), nClass, 'la');
+V = eigV * sqrt(eigD);
+[~, Label] = max(abs(V), [], 2);
+V = V';
 
 end
